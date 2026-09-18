@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Jenkins B2 Docker ECR</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <p class="eyebrow">Docker + Jenkins + ECR</p>
+        <h1>Container image delivery</h1>
+        <p>
+          This static Nginx app is built as a Docker image by Jenkins and pushed
+          to a private Amazon ECR repository.
+        </p>
+        <ul>
+          <li>Builds from a Dockerfile</li>
+          <li>Creates the ECR repository if it is missing</li>
+          <li>Pushes both build-specific and latest image tags</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

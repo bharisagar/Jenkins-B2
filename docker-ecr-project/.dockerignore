@@ -1,0 +1,5 @@
+.git
+.gitignore
+dist
+README.md
+*.log
