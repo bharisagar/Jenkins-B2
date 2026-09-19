@@ -1,0 +1,27 @@
+{
+  "main": {
+    "track": "production",
+    "target": "production",
+    "description": "Main branch validation and production deployment simulation."
+  },
+  "development": {
+    "track": "integration",
+    "target": "development",
+    "description": "Shared integration branch delivery simulation."
+  },
+  "release/*": {
+    "track": "release-candidate",
+    "target": "staging",
+    "description": "Release candidate validation before production."
+  },
+  "feature/*": {
+    "track": "feature-validation",
+    "target": "preview",
+    "description": "Feature branch validation and preview packaging."
+  },
+  "pull-request": {
+    "track": "pull-request",
+    "target": "preview",
+    "description": "Pull request validation before merge."
+  }
+}

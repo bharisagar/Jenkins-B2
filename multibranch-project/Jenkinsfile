@@ -1,0 +1,167 @@
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '15'))
+    skipDefaultCheckout(true)
+  }
+
+  environment {
+    PROJECT_DIR = 'multibranch-project'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        echo "Building branch: ${env.BRANCH_NAME}"
+        echo "Change request: ${env.CHANGE_ID ?: 'no'}"
+      }
+    }
+
+    stage('Branch Context') {
+      steps {
+        script {
+          env.BRANCH_SAFE_NAME = (env.BRANCH_NAME ?: 'local')
+            .replaceAll('[^A-Za-z0-9_.-]', '-')
+
+          if (env.CHANGE_ID) {
+            env.PIPELINE_TRACK = 'pull-request'
+            env.DEPLOY_TARGET = "preview-pr-${env.CHANGE_ID}"
+          } else if (env.BRANCH_NAME == 'main') {
+            env.PIPELINE_TRACK = 'production'
+            env.DEPLOY_TARGET = 'production'
+          } else if (env.BRANCH_NAME == 'development') {
+            env.PIPELINE_TRACK = 'integration'
+            env.DEPLOY_TARGET = 'development'
+          } else if (env.BRANCH_NAME ==~ /^release\/.+/) {
+            env.PIPELINE_TRACK = 'release-candidate'
+            env.DEPLOY_TARGET = 'staging'
+          } else if (env.BRANCH_NAME ==~ /^feature\/.+/) {
+            env.PIPELINE_TRACK = 'feature-validation'
+            env.DEPLOY_TARGET = "preview-${env.BRANCH_SAFE_NAME}"
+          } else {
+            env.PIPELINE_TRACK = 'branch-validation'
+            env.DEPLOY_TARGET = "sandbox-${env.BRANCH_SAFE_NAME}"
+          }
+
+          echo "Pipeline track: ${env.PIPELINE_TRACK}"
+          echo "Target environment: ${env.DEPLOY_TARGET}"
+        }
+      }
+    }
+
+    stage('Validate') {
+      steps {
+        script {
+          def homepage = readFile("${env.PROJECT_DIR}/src/index.html")
+          def app = readFile("${env.PROJECT_DIR}/src/app.js")
+          def rules = readFile("${env.PROJECT_DIR}/config/branch-rules.json")
+
+          if (!homepage.contains('Jenkins Multibranch Pipeline')) {
+            error('Expected project title not found in index.html')
+          }
+
+          if (!app.contains('resolveBranchMessage')) {
+            error('Expected branch message logic not found in app.js')
+          }
+
+          if (!rules.contains('feature/*')) {
+            error('Expected feature branch rule not found in branch-rules.json')
+          }
+        }
+      }
+    }
+
+    stage('Package') {
+      steps {
+        script {
+          if (isUnix()) {
+            sh '''
+              set -e
+              rm -rf "${PROJECT_DIR}/dist"
+              mkdir -p "${PROJECT_DIR}/dist/${BRANCH_SAFE_NAME}"
+              cp -R "${PROJECT_DIR}/src/." "${PROJECT_DIR}/dist/${BRANCH_SAFE_NAME}/"
+            '''
+          } else {
+            bat 'if exist "%PROJECT_DIR%\\dist" rmdir /S /Q "%PROJECT_DIR%\\dist"'
+            bat 'mkdir "%PROJECT_DIR%\\dist\\%BRANCH_SAFE_NAME%"'
+            bat 'xcopy "%PROJECT_DIR%\\src" "%PROJECT_DIR%\\dist\\%BRANCH_SAFE_NAME%" /E /I /Y'
+          }
+
+          writeFile(
+            file: "${env.PROJECT_DIR}/dist/${env.BRANCH_SAFE_NAME}/branch-info.json",
+            text: """{
+  "branch": "${env.BRANCH_NAME}",
+  "changeId": "${env.CHANGE_ID ?: ''}",
+  "pipelineTrack": "${env.PIPELINE_TRACK}",
+  "deployTarget": "${env.DEPLOY_TARGET}",
+  "buildNumber": "${env.BUILD_NUMBER}"
+}
+"""
+          )
+        }
+      }
+    }
+
+    stage('Pull Request Checks') {
+      when {
+        changeRequest()
+      }
+      steps {
+        echo "Running pull request validation for PR ${env.CHANGE_ID}"
+      }
+    }
+
+    stage('Feature Branch Checks') {
+      when {
+        expression {
+          return env.BRANCH_NAME ==~ /^feature\/.+/
+        }
+      }
+      steps {
+        echo "Running feature branch checks for ${env.BRANCH_NAME}"
+      }
+    }
+
+    stage('Development Delivery') {
+      when {
+        branch 'development'
+      }
+      steps {
+        echo 'Simulating delivery to the shared development environment'
+      }
+    }
+
+    stage('Release Candidate') {
+      when {
+        expression {
+          return env.BRANCH_NAME ==~ /^release\/.+/
+        }
+      }
+      steps {
+        echo "Simulating release candidate validation for ${env.BRANCH_NAME}"
+      }
+    }
+
+    stage('Production Deploy Simulation') {
+      when {
+        branch 'main'
+      }
+      steps {
+        echo 'Simulating production deployment from main'
+      }
+    }
+  }
+
+  post {
+    success {
+      archiveArtifacts artifacts: "${env.PROJECT_DIR}/dist/**", fingerprint: true
+    }
+    always {
+      echo "Multibranch pipeline finished with status: ${currentBuild.currentResult}"
+    }
+  }
+}

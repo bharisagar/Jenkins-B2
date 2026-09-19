@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Jenkins Multibranch Pipeline</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <p class="eyebrow">Pipeline as code</p>
+        <h1>Jenkins Multibranch Pipeline</h1>
+        <p class="lede">
+          One Jenkins job can discover branches automatically and run the
+          Jenkinsfile that belongs to each branch.
+        </p>
+        <div class="branch-card">
+          <span>Current behavior</span>
+          <strong data-branch-status>Waiting for branch context</strong>
+        </div>
+        <ul class="branch-list">
+          <li><strong>main</strong><span>Production deployment simulation</span></li>
+          <li><strong>development</strong><span>Integration delivery simulation</span></li>
+          <li><strong>feature/*</strong><span>Feature validation simulation</span></li>
+          <li><strong>release/*</strong><span>Release candidate validation</span></li>
+        </ul>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
